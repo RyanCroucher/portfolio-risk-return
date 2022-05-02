@@ -1,6 +1,8 @@
 import numpy as np
 from itertools import combinations
 from unittest import *
+import random
+import time
 
 def portfolio_asset_pairs(portfolio_assets) -> np.array:
     """
@@ -20,8 +22,8 @@ def portfolio_asset_pairs(portfolio_assets) -> np.array:
     except:
         raise TypeError(f"Input should be an iterable, not a {type(portfolio_assets)}")
 
-    if len(portfolio_assets) < 2:
-        raise ValueError(f"Length of input must be at least 2, not {len(portfolio_assets)}")
+    if len(portfolio_assets) == 0:
+        raise ValueError(f"Length of input must be at least 1, not {len(portfolio_assets)}")
 
     if len(portfolio_assets) != len(set(portfolio_assets)):
         raise ValueError(f"Input contains duplicate asset names")
@@ -119,8 +121,9 @@ def portfolio_variance(weights: np.array, covariance_matrix: np.array) -> float:
 
 def portfolios_risk(portfolios):
     """
+    input:
     An iterable containing Portfolios
-    A portfolio is a diction of assets where
+    A portfolio is a dictionary of assets where
     An asset maps asset_name: (weight, returns)
 
     We calculate all occuring covariances, then use asset weights + covariances
@@ -140,6 +143,8 @@ def portfolios_risk(portfolios):
 
     all_covariances = {(a, b): covariance(all_assets_name_to_returns[a], all_assets_name_to_returns[b]) for a, b in occuring_pairs}
 
+    portfolio_risks = []
+
     #create weight vector and covariance matrix for each portfolio
     for portfolio in portfolios:
         sorted_asset_names = sorted(portfolio.keys())
@@ -154,10 +159,12 @@ def portfolios_risk(portfolios):
                     asset_a, asset_b = asset_b, asset_a #swap them to keep alphabetical order
                 cov_matrix[i, j] = all_covariances[(asset_a, asset_b)]
 
-        print(weight_vector)
-        print(cov_matrix)
+        #print(weight_vector)
+        #print(cov_matrix)
+        #print("Volatility: ", portfolio_variance(weight_vector, cov_matrix) ** 0.5)
+        portfolio_risks.append(portfolio_variance(weight_vector, cov_matrix) ** 0.5)
 
-        print("Volatility: ", portfolio_variance(weight_vector, cov_matrix) ** 0.5)
+    return portfolio_risks
 
     
 def test_covariance():
@@ -183,13 +190,45 @@ def main():
     portfolio_a['asset_b'] = (0.6, [2, 2, 3, 0, 0, -1, -1, 2, 2])
     portfolio_a['asset_c'] = (0.3, [-1, -1, 1, 1, 0, 1, -1, 1, 2])
 
-    portfolios_risk([portfolio_a])
-
     portfolio_b = {}
-    portfolio_b['asset_a'] = (0.5, [1, 2, 3, 4, 5, -1, -2, -3])
-    portfolio_b['asset_b'] = (0.5, [-1, -2, -3, -4, -5, 1, 2, 3])
+    portfolio_b['asset_d'] = (0.5, [1, 2, 3, 4, 5, -1, -2, -3])
+    portfolio_b['asset_e'] = (0.5, [-1, -2, -3, -4, -5, 1, 2, 3])
 
-    portfolios_risk([portfolio_b])
+    portfolio_c = {}
+    portfolio_c['asset_d'] = (0.5, [1, 2, 3, 4, 5, -1, -2, -3])
+    portfolio_c['asset_f'] = (0.5, [2, 3, 6, 7, 4, 0, 2, -1])
+
+    print(portfolios_risk([portfolio_a, portfolio_b, portfolio_c]))
+
+
+    num_days = 365
+    num_assets = 100
+    num_portfolios = 10**6
+    max_assets_per_portfolio = 10
+
+    print(f"Generating {num_portfolios=}, {num_days=}, {num_assets=}, {max_assets_per_portfolio=}")
+
+    assets = [[] for _ in range(num_assets)]
+    for i in range(num_assets):
+        for _ in range(num_days):
+            assets[i].append(random.randint(-10, 10))
+
+    portfolios = [{} for _ in range(num_portfolios)]
+    for portfolio_i in range(num_portfolios):
+        seed = random.randint(1, 1000)
+        num_portfolio_assets = random.randint(1, max_assets_per_portfolio)
+        weights = np.random.dirichlet(np.ones(num_portfolio_assets)*seed, size=1)[0]
+        portfolio_assets = random.choices(list(range(num_assets)), k=num_portfolio_assets)
+        for asset_i in range(len(portfolio_assets)):
+            portfolios[portfolio_i][asset_i] = (weights[asset_i], assets[portfolio_assets[asset_i]])
+
+    print(f"Calculating risk...")
+    start_time = time.time()
+    portfolios_risk(portfolios)
+    print(f"Done! ({time.time() - start_time:.1f} seconds)")
+
+
+
 
 if __name__ == '__main__':
     main()

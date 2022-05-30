@@ -142,7 +142,8 @@ def portfolios_risk(portfolios):
         occuring_pairs |= portfolio_asset_pairs(list(portfolio.keys()))
 
     all_covariances = {(a, b): covariance(all_assets_name_to_returns[a], all_assets_name_to_returns[b]) for a, b in occuring_pairs}
-
+    print("max cov", max(all_covariances.values()))
+    print("min cov", min(all_covariances.values()))
     portfolio_risks = []
 
     #create weight vector and covariance matrix for each portfolio
@@ -203,7 +204,7 @@ def main():
 
     num_days = 365
     num_assets = 100
-    num_portfolios = 10**6
+    num_portfolios = 10**4
     max_assets_per_portfolio = 10
 
     print(f"Generating {num_portfolios=}, {num_days=}, {num_assets=}, {max_assets_per_portfolio=}")

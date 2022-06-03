@@ -1,3 +1,4 @@
 *.txt
 .env
-main.py
+old_volatility.py
+__pycache__/

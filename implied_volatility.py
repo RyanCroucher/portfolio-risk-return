@@ -1,6 +1,7 @@
 from google.cloud import bigquery
 import numpy as np
 from dotenv import load_dotenv
+import pandas as pd
 import os
 
 class Portfolio:
@@ -64,7 +65,7 @@ def build_covariance_dict_from_df(intrument_pair_cov_df):
 
     return covariance_dict
 
-def get_portfolio_volatility(portfolio, covariance_dict):
+def calculate_portfolio_volatility(portfolio, covariance_dict):
 
     portfolio_asset_names = portfolio.get_sorted_asset_names()
 
@@ -83,7 +84,7 @@ def get_portfolio_volatility(portfolio, covariance_dict):
     portfolio_stdev = np.sqrt(portfolio_variance)
     return portfolio_stdev
 
-def get_platform_data(platform):
+def get_platform_data(bq, platform):
     platforms_file = open("platform_names.txt")
     valid_platform_names = set(platforms_file.read().splitlines())
     platforms_file.close()
@@ -103,20 +104,37 @@ def get_platform_data(platform):
 
     return portfolios_dict, covariance_dict
 
+def get_all_portfolio_volatilities(platform):
 
 
-load_dotenv()
-PROJECT = os.getenv('PROJECT')
+    load_dotenv()
+    PROJECT = os.getenv('PROJECT')
 
-bq = bigquery.Client(project=PROJECT)
+    bq = bigquery.Client(project=PROJECT)
 
-portfolios_dict, covariance_dict = get_platform_data("AXA")
+    print("Retrieving data...")
+    portfolios_dict, covariance_dict = get_platform_data(bq, platform)
 
-portfolio_to_volatility = {}
-for portfolio_name, portfolio in portfolios_dict.items():
-    portfolio_to_volatility[portfolio_name] = get_portfolio_volatility(portfolio, covariance_dict)
+    portfolio_to_volatility = {}
+    for portfolio_name, portfolio in portfolios_dict.items():
+        portfolio_to_volatility[portfolio_name] = calculate_portfolio_volatility(portfolio, covariance_dict)
 
-print("Calculated implied volatility for", len(portfolio_to_volatility), "portfolios.")
+    print("Calculated implied volatility for", len(portfolio_to_volatility), "portfolios.")
 
-volatilities = sorted(portfolio_to_volatility.values())
-print("min:", volatilities[0], "max:", volatilities[-1], "median:", volatilities[len(volatilities)//2])
+    return portfolio_to_volatility
+
+
+def write_portfolio_volatilities_to_bq(bq, portfolio_to_volatility, destination_table):
+    volatilities_df = pd.DataFrame.from_dict(portfolio_to_volatility, orient='index', columns=['ClAccountID', '1yr_volatility'])
+
+    # Since string columns use the "object" dtype, pass in a (partial) schema
+    job_config = bigquery.LoadJobConfig(schema=[
+        bigquery.SchemaField("ClAccountID", "STRING"),
+    ])
+
+    job = bq.load_table_from_dataframe(
+        volatilities_df, destination_table, job_config=job_config
+    )
+
+    # Wait for the load job to complete.
+    job.result()

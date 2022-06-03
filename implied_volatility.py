@@ -104,15 +104,8 @@ def get_platform_data(bq, platform):
 
     return portfolios_dict, covariance_dict
 
-def get_all_portfolio_volatilities(platform):
+def get_all_portfolio_volatilities(bq, platform):
 
-
-    load_dotenv()
-    PROJECT = os.getenv('PROJECT')
-
-    bq = bigquery.Client(project=PROJECT)
-
-    print("Retrieving data...")
     portfolios_dict, covariance_dict = get_platform_data(bq, platform)
 
     portfolio_to_volatility = {}
@@ -125,12 +118,13 @@ def get_all_portfolio_volatilities(platform):
 
 
 def write_portfolio_volatilities_to_bq(bq, portfolio_to_volatility, destination_table):
-    volatilities_df = pd.DataFrame.from_dict(portfolio_to_volatility, orient='index', columns=['ClAccountID', '1yr_volatility'])
+
+    volatilities_df = pd.DataFrame(portfolio_to_volatility.items(), columns=['ClAccountID', 'volatility_1yr'])
 
     # Since string columns use the "object" dtype, pass in a (partial) schema
-    job_config = bigquery.LoadJobConfig(schema=[
-        bigquery.SchemaField("ClAccountID", "STRING"),
-    ])
+    job_config = bigquery.LoadJobConfig(
+        schema=[bigquery.SchemaField("ClAccountID", "STRING")],
+        write_disposition="WRITE_TRUNCATE")
 
     job = bq.load_table_from_dataframe(
         volatilities_df, destination_table, job_config=job_config
@@ -138,3 +132,11 @@ def write_portfolio_volatilities_to_bq(bq, portfolio_to_volatility, destination_
 
     # Wait for the load job to complete.
     job.result()
+
+def get_bq_connection():
+
+    load_dotenv()
+    PROJECT = os.getenv('PROJECT')
+    bq = bigquery.Client(project=PROJECT)
+
+    return bq

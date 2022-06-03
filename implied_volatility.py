@@ -83,22 +83,34 @@ def get_portfolio_volatility(portfolio, covariance_dict):
     portfolio_stdev = np.sqrt(portfolio_variance)
     return portfolio_stdev
 
+def get_platform_data(platform):
+    platforms_file = open("platform_names.txt")
+    valid_platform_names = set(platforms_file.read().splitlines())
+    platforms_file.close()
+
+    if platform not in valid_platform_names:
+        raise ValueError("Invalid platform name")
+
+    aua_query_base = os.getenv('AUA_QUERY') # ~200mb full data
+    aua_query = aua_query_base.replace("{platform_name}", platform)
+    acc_inst_val_df = bq.query(aua_query, location='EU').to_dataframe()
+    portfolios_dict = build_portfolio_dict_from_df(acc_inst_val_df)
+
+    covariance_query_base = os.getenv('COVARIANCE_QUERY') # ~25mb full data
+    covariance_query = covariance_query_base.replace("{platform_name}", platform)
+    inst_pair_cov_df = bq.query(covariance_query, location='EU').to_dataframe()
+    covariance_dict = build_covariance_dict_from_df(inst_pair_cov_df)
+
+    return portfolios_dict, covariance_dict
+
+
+
 load_dotenv()
 PROJECT = os.getenv('PROJECT')
 
 bq = bigquery.Client(project=PROJECT)
 
-# ~200mb full data
-query = os.getenv('AUA_QUERY') #limit data while testing
-acc_inst_val_df = bq.query(query, location='EU').to_dataframe()
-
-portfolios_dict = build_portfolio_dict_from_df(acc_inst_val_df)
-
-# ~25mb full data
-query = os.getenv('COVARIANCE_QUERY') #limit data while testing
-inst_pair_cov_df = bq.query(query, location='EU').to_dataframe()
-
-covariance_dict = build_covariance_dict_from_df(inst_pair_cov_df)
+portfolios_dict, covariance_dict = get_platform_data("AXA")
 
 portfolio_to_volatility = {}
 for portfolio_name, portfolio in portfolios_dict.items():

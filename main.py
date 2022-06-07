@@ -22,7 +22,7 @@ def retrieve_volatilities(platform_name):
     dataset = os.getenv("DATASET")
     destination_table = f"{dataset}.{platform_name}_implied_volatility"
     print("Writing data to BQ")
-    implied_volatility.write_portfolio_volatilities_to_bq(bq, portfolio_to_volatility, destination_table)
+    #implied_volatility.write_portfolio_volatilities_to_bq(bq, portfolio_to_volatility, destination_table)
 
     volatilities = sorted(portfolio_to_volatility.values())
     return "Wrote {} portfolio volatilities to BQ. Min: {}, Max: {}, Median: {}".format(len(volatilities), volatilities[0], volatilities[-1], volatilities[len(volatilities)//2])

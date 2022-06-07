@@ -18,7 +18,10 @@ class Portfolio:
 
     def get_asset_weight(self, asset_id):
         asset = self.assets[asset_id]
-        return asset.asset_value / self.total_value
+        if self.total_value == 0:
+            return 0
+        else:
+            return asset.asset_value / self.total_value
 
     def get_sorted_asset_names(self):
         sorted_asset_names = sorted(self.assets.keys())
@@ -77,7 +80,7 @@ def calculate_portfolio_volatility(portfolio, covariance_dict):
             try:
                 covariance_matrix[i, j] = covariance_dict[(asset_a, asset_b)]
             except KeyError:
-                #print(f"({asset_a}, {asset_b}) not in covariance dictionary, setting covariance to 1 if equal else 0")
+                print(f"({asset_a}, {asset_b}) not in covariance dictionary, setting covariance to 1 if equal else 0")
                 covariance_matrix[i, j] = 1 if asset_a == asset_b else 0
 
     portfolio_variance = (weight_vector.T @ covariance_matrix @ weight_vector)[0, 0] #the only element of the result 'matrix'
@@ -92,14 +95,20 @@ def get_platform_data(bq, platform):
     if platform not in valid_platform_names:
         raise ValueError("Invalid platform name")
 
-    aua_query_base = os.getenv('AUA_QUERY') # ~200mb full data
-    aua_query = aua_query_base.replace("{platform_name}", platform)
-    acc_inst_val_df = bq.query(aua_query, location='EU').to_dataframe()
+    job_config = bigquery.QueryJobConfig(
+        query_parameters = [
+            bigquery.ScalarQueryParameter("platform_name", "STRING", platform)
+        ]
+    )
+
+    aua_query = os.getenv('AUA_QUERY') # ~200mb full data
+    #aua_query = aua_query_base.replace("{platform_name}", platform)
+    acc_inst_val_df = bq.query(aua_query, location='EU', job_config=job_config).to_dataframe()
     portfolios_dict = build_portfolio_dict_from_df(acc_inst_val_df)
 
-    covariance_query_base = os.getenv('COVARIANCE_QUERY') # ~25mb full data
-    covariance_query = covariance_query_base.replace("{platform_name}", platform)
-    inst_pair_cov_df = bq.query(covariance_query, location='EU').to_dataframe()
+    covariance_query = os.getenv('COVARIANCE_QUERY') # ~25mb full data
+    #covariance_query = covariance_query_base.replace("{platform_name}", platform)
+    inst_pair_cov_df = bq.query(covariance_query, location='EU', job_config=job_config).to_dataframe()
     covariance_dict = build_covariance_dict_from_df(inst_pair_cov_df)
 
     return portfolios_dict, covariance_dict
